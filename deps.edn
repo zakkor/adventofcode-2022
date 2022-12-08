@@ -1,0 +1,4 @@
+{:paths ["src"]
+ :deps  {swiss-arrows/swiss-arrows {:mvn/version "1.0.0"}}
+ :aliases
+ {:neil {:project {:name aoc2022/aoc2022}}}}
