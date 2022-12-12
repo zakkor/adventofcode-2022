@@ -189,8 +189,20 @@
     {:p1 (calc false)
      :p2 (calc true)}))
 
+(def d6
+  (let
+   [calc
+    (fn [n]
+      (->> (slurp "input6")
+           (partition-all n 1)
+           (keep-indexed (fn [i v] (when (= n (count (set v))) i)))
+           first
+           (+ n)))]
+    {:p1 (calc 4)
+     :p2 (calc 14)}))
+
 (comment
   (do
-
-    d5)
+    (def d6)
+    d6)
   :rcf)
