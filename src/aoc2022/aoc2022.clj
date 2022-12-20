@@ -1,7 +1,8 @@
 (ns aoc2022.aoc2022
   (:require clojure.inspector
             [clojure.set :as set]
-            [clojure.string :as str :refer [split replace split-lines]])
+            [clojure.string :as str :refer [replace split split-lines]]
+            [clojure.zip :as z :refer [zipper]])
   (:require [swiss.arrows :refer [-<>>]]))
 
 (def d1
@@ -201,8 +202,131 @@
     {:p1 (calc 4)
      :p2 (calc 14)}))
 
+
+(defn zip-iter [loc]
+  (->> loc
+       (iterate z/next)
+       (take-while (complement z/end?))))
+
 (comment
   (do
-    (def d6)
-    d6)
+    (def d7
+      (let
+       [fs-zip
+        (fn [root]
+          (z/zipper
+           :children
+           :children
+           (fn [node children] (assoc node :children children))
+           root))
+
+        commands
+        (->> (split (slurp "input7") #"\$ ")
+             (map split-lines)
+             (drop 2))
+
+        parse-file-entry
+        (fn [s] (let [[size-or-type name] (split s #" ")]
+                  (if (= size-or-type "dir")
+                    {:name name :children []}
+                    {:name name :size (parse-long size-or-type)})))
+
+        zip-find
+        (fn [loc pred]
+          (if (pred (z/node loc))
+            loc
+            (if (z/end? loc)
+              nil
+              (recur (z/next loc) pred))))
+
+        interpret-cmd
+        (fn [loc [cmd & output]]
+          (if (= cmd "ls")
+            (z/edit loc #(update % :children into (map parse-file-entry output)))
+            (let [[_ arg] (str/split cmd #" ")]
+              (if (= arg "..")
+                (z/up loc)
+                (zip-find loc (fn [node] (= arg (:name node))))))))
+
+        node-size
+        (fn node-size [node]
+          (if (:size node)
+            (:size node)
+            (reduce + (map node-size (:children node)))))]
+
+        (->> commands
+             (reduce interpret-cmd (fs-zip {:name "/" :children []}))
+             z/root
+             fs-zip
+             zip-iter
+             (map (fn [loc]
+                    (let [node (z/node loc)]
+                      (if (:children node)
+                        (assoc node :size (node-size node))
+                        node))))
+             (filter #(and (:children %) (< (% :size) 100000)))
+             (map :size)
+             (reduce +))))
+    d7)
   :rcf)
+
+(def d7
+  (let
+   [fs-zip
+    (fn [root]
+      (z/zipper
+       :children
+       :children
+       (fn [node children] (assoc node :children children))
+       root))
+
+    commands
+    (->> (split (slurp "input7") #"\$ ")
+         (map split-lines)
+         (drop 2))
+
+    parse-file-entry
+    (fn [s] (let [[size-or-type name] (split s #" ")]
+              (if (= size-or-type "dir")
+                {:name name :children []}
+                {:name name :size (parse-long size-or-type)})))
+
+    zip-find
+    (fn [loc pred]
+      (if (pred (z/node loc))
+        loc
+        (if (z/end? loc)
+          nil
+          (recur (z/next loc) pred))))
+
+    interpret-cmd
+    (fn [loc [cmd & output]]
+      (if (= cmd "ls")
+        (do
+          (println "editing:" (z/node loc))
+          (z/edit loc (fn [node]
+                        (update node :children into (filter #(some #{} (node :children)) (map parse-file-entry output))))))
+        (let [[_ arg] (str/split cmd #" ")]
+          (if (= arg "..")
+            (z/up loc)
+            (zip-find loc (fn [node] (= arg (:name node))))))))
+
+    node-size
+    (fn node-size [node]
+      (if (:size node)
+        (:size node)
+        (reduce + (map node-size (:children node)))))]
+
+    (->> commands
+         (reduce interpret-cmd (fs-zip {:name "/" :children []}))
+         z/root
+         fs-zip
+         zip-iter
+         (map (fn [loc]
+                (let [node (z/node loc)]
+                  (if (:children node)
+                    (assoc node :size (node-size node))
+                    node))))
+         (filter #(and (:children %) (< (% :size) 100000)))
+         (map :size)
+         (reduce +))))
